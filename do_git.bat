@@ -3,18 +3,22 @@
 echo ----------------------------------------------------------------------------
 echo IMPORTANT:
 echo ----------------------------------------------------------------------------
-echo.
 echo   1.  Create the github repository BEFORE running this batch file.
-echo       a.  Example description:  2D project examples using Unity 2022.3.62f2
 echo.
 echo   2.  Close Unity and Visual Studio BEFORE running this batch file.
 echo.
 echo   3.  Do NOT add a .gitignore or a README.md file in github:
 echo       a.  Add the .gitignore file to you Unity project.
 echo       b.  The README.md file is created from this batch file.
-echo.
 echo ----------------------------------------------------------------------------
 echo.
+
+@echo on
+set GIT_TRACE_PACKET=1
+set GIT_TRACE=1
+set GIT_CURL_VERBOSE=1
+@echo off
+
 
 rem ----------------------------------------------------------------------------
 rem  Configure some git settings.
@@ -34,63 +38,69 @@ echo remote_origin....:  %remote_origin%
 echo.
 
 rem ----------------------------------------------------------------------------
-rem  Configure some github global settings..
-rem ----------------------------------------------------------------------------
-echo on
-git config --global --add safe.directory %local_directory%
-git config --global user.email "randall_price@hotmail.com"
-git config --global user.name  "Randall Price"
-echo.
-@echo off
-
-rem ----------------------------------------------------------------------------
 rem  Prompt for the step to perform.
 rem ----------------------------------------------------------------------------
-set /p step= "Enter the step to perform (F = First time, A = ADD changes and commit, Q = quit):  "
-rem echo You entered %step%
-if "%step%"=="f" goto First_Time
-if "%step%"=="F" goto First_Time
-if "%step%"=="a" goto Add_And_Commit
-if "%step%"=="A" goto Add_And_Commit
-if "%step%"=="q" goto Quit
-if "%step%"=="Q" goto Quit
+set /p step= "Enter the step to perform (F = First time, A = ADD changes and commit, Q = Quit):  "
+rem echo You entered:  %step%
+if /I "%step%"=="f" goto First_Time
+if /I "%step%"=="a" goto Add_And_Commit
+if /I "%step%"=="q" goto Done
 
 :First_Time
 rem ----------------------------------------------------------------------------
 rem One-time configuration for this project.
 rem
-rem  - Initialize the repository
-rem  - Set the remote origin  
-rem  - Refresh the local files from the master branch
+rem  - Configure some github global settings
+rem  - Delete the README.md file if it exists
 rem  - Create the README.md file
-rem  - Add and commit the changes
+rem  - Initialize the repository
+rem  - Add and commit the README.md file
+rem  - Refresh the local files from the master branch
+rem  - Set the remote origin  
 rem  - Push to the remote repository
+rem  - Show the status
 rem ----------------------------------------------------------------------------
-echo %project_name%>> README.md
-echo.>> README.md
-echo %project_name% example using Unity %editor_version%.>> README.md
-echo.>> README.md
+@echo on
+git config --global --add safe.directory %local_directory%
+git config --global user.email "randall_price@hotmail.com"
+git config --global user.name  "Randall Price"
 
-echo on
+rem ----------------------------------------------------------------------------
+rem  These settings are to resolve the following error:
+rem    error: RPC failed; HTTP 408 curl 22 The requested URL returned error: 408
+rem    send-pack: unexpected disconnect while reading sideband packet
+rem    fatal: the remote end hung up unexpectedly
+rem 157286400
+rem ----------------------------------------------------------------------------
+git config --global http.postBuffer 524288000
+git config --global core.compression 0
+echo.
+
+set filePath=README.md
+if exist %filePath% (
+    del %filePath%
+    echo %filePath% file deleted.
+)
+echo %project_name%>> %filePath%
+echo.>> %filePath%
+echo %project_name% game using Unity %editor_version%.>> %filePath%
+echo.>> %filePath%
+
 git init
-git remote add origin %remote_origin%
+git pull master, origin
+git add %filePath%
+git commit -m "Initial project upload."
 git branch -M master
-git add README.md
-git commit -m "Setup:  README.md and remote origin."
+git remote add origin %remote_origin%
 git push -u origin master
 git status
 @echo off
 
 echo.
 echo First time configuration:
-echo   - GIT initialized
-echo   - remote origin...:  %remote_origin%
-echo   - README.md file..:  created
-echo   - README.md file..:  committed
-echo   - README.md file..:  pushed to remote
+echo   - %filePath% created and commited.
 echo.
-pause
-goto Done
+rem goto Done
 
 
 :Add_And_Commit
@@ -100,14 +110,12 @@ rem      Example:  Added Part 1 - Spaceship Controls and Part 2 - Bullets.
 rem  - Add and commit the changes
 rem  - Push to the remote repository
 rem ----------------------------------------------------------------------------
-set "defaultValue=Initial project upload."
-set /p "commit_message=Enter commit message (Enter = <%defaultValue%>, Q = Quit):  "
-if not defined commit_message ( set "commit_message=%defaultValue%" )
-echo You entered: %commit_message%
-if "%commit_message%"=="q" goto Quit
-if "%commit_message%"=="Q" goto Quit
+set /p commit_message= "Enter commit message for the ADD (Q to Quit):  "
+echo You entered:  %commit_message%
+if "%commit_message%"=="q" goto Done
+if "%commit_message%"=="Q" goto Done
 
-echo on
+@echo on
 git pull origin master
 git add .
 git commit -m "%commit_message%"
@@ -117,8 +125,7 @@ git push -u origin master
 echo.
 echo - Changed files committed and pushed to remote repository successfully.
 echo.
-pause
 
 :Done
-:Quit
+pause
 exit
